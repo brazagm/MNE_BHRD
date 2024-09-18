@@ -1,3 +1,5 @@
+.qgz
+.Rproj
 .Rproj.user
 .Rhistory
 .RData
@@ -5,7 +7,7 @@
 .zip
 
 #ignorar pasta
-data/raster
-modelos
-docs
-MNE_BHRD.Rproj
+data
+processed_data
+results
+

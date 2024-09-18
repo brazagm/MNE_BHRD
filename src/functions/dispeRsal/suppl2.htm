@@ -1,0 +1,160 @@
+<!--?php include 'header.php'; ?--><!doctype html><html><head>
+        <meta http-equiv="Content-Type" content="text/html, charset=UTF-8">
+        <title>Ecological Archives E095-045-S2</title>
+        
+        <script type="text/javascript" src="http://www.esapubs.org/templates/scripts/analytics.js"></script>
+    <style type="text/css">
+body {background-color: #FFF; font-family: Times New Roman, Times, serif;}
+
+hr {
+	height: .15em;
+	color: gray;
+	background-color: gray;
+	border-width: 0;
+}
+hr.divider {
+	width: 50em;
+	margin-top: 1.7em;
+	margin-bottom: 2em;
+	margin-left: 0;
+}
+
+p {max-width: 50em;}
+
+li {max-width: 48em;}
+
+sub, sup {font-size: .7em;}
+
+table, td {
+	border: 1px solid black;
+	border-collapse: collapse;
+	text-align: center;
+    vertical-align: top;
+}
+td {max-width: 70em; padding: .1em;}
+table, tr {
+	padding: .1em;}
+tr:first-child {font-weight: bold;}
+
+table.equation {border: none; width: 48em;}
+.equation td {border: none; text-align: left; vertical-align: middle;}
+.equation tr:first-child {font-weight: normal;}
+.equation td:last-child {text-align: right; width: 3em;}
+
+table.noFormat {border: none; text-align: inherit;}
+.noFormat td {border: none; text-align: inherit;}
+.noFormat tr:first-child {font-weight: normal;}
+
+/* Position modifiers.  Use these to alter placement of elements on the page. */
+
+.center {margin-left: auto; margin-right: auto; text-align: center;}
+.textCenter {text-align: center;}
+.textLeft  {text-align:left;}
+
+.indent {margin-left: 2em;}
+p.indent {max-width: 48em;}
+p.heading.indent {max-width: 40em;}
+.halfIndent {margin-left: 1em;}
+
+/* Font modifiers.  Use these to alter font style and type. */
+
+.courier {font-family: Courier new, Courier, mono;}
+.heading {max-width: 45em; margin-top: .7em; font-size: 1.2em; font-weight: bold;}
+.overline {text-decoration: overline;}
+.over {text-decoration: overline;}
+.roman{font-style: normal; text-decoration: none; font-weight: normal;}
+.smallcaps {font-variant: small-caps;}
+
+#links {font-size: .7em; font-family: Arial, Helvetica, sans-serif;}
+</style></head>
+    <body bgcolor="#FFFFFF">
+        <p class="heading">Riin Tamme, Lars Götzenberger, Martin Zobel, James M. Bullock, Danny A. P. Hooftman, Ants Kaasik, Meelis Pärtel. 2014. Predicting species' maximum dispersal distances from simple plant traits. <i>Ecology</i> 95:505–513. <a href="http://dx.doi.org/10.1890/13-1000.1">http://dx.doi.org/10.1890/13-1000.1</a></p>
+        <hr>
+        <p class="heading">Supplement 2</p>
+        <p class="heading indent">
+            Function dispeRsal for predicting seed dispersal distances in R, and instructions for using dispeRsal.
+            <br><i>Ecological Archives</i> E095-045-S2.
+        </p>
+        <p style="font-weight: bold;"><a href="../../../copyright.htm">Copyright</a></p>
+        <hr>
+        <p class="heading indent">
+            <a href="#authors">Authors</a><br>
+            <a href="#filelist">File list (downloads)</a><br>
+            <a href="#desc">Description</a>
+        </p>
+        <hr>
+        <!-- Content starts here!  Don't delete anything before this! -->
+        <p id="authors" class="heading">Author(s)</p>
+        <div class="indent">
+            <p>Riin Tamme<br>
+Institute of Ecology and Earth Sciences<br>
+University of Tartu<br>
+Lai 40, Tartu 51005<br>
+Estonia<br>
+E-mail: <a href="mailto:riin.tamme@ut.ee">riin.tamme@ut.ee</a></p>
+            <p>Lars Götzenberger<br>
+              Institute of Ecology and Earth Sciences<br>
+              University of Tartu<br>
+              Lai 40, Tartu 51005<br>
+              Estonia<br>
+  &amp;<br>
+              Institute of Botany<br>
+              Czech Academy of Science<br>
+              Dukelská 135, CZ-379 82 Třeboň<br>
+              Czech Republic<br>
+              E-mail: lars@ut.ee</p>
+            <p>Martin Zobel<br>
+              Institute of Ecology and Earth Sciences<br>
+              University of Tartu<br>
+              Lai 40, Tartu 51005<br>
+              Estonia</p>
+            <p>James M. Bullock<br>
+              NERC Centre for Ecology and Hydrology<br>
+              Maclean Building, Benson Lane, Wallingford OX10 8BB<br>
+              UK</p>
+            <p>Danny A. P. Hooftman<br>
+              NERC Centre for Ecology and Hydrology<br>
+              Maclean Building, Benson Lane, Wallingford OX10 8BB<br>
+              UK</p>
+            <p>Ants Kaasik<br>
+              Institute of Ecology and Earth Sciences<br>
+              University of Tartu<br>
+              Vanemuise 46, Tartu 51014<br>
+              Estonia</p>
+            <p>Meelis Pärtel<br>
+              Institute of Ecology and Earth Sciences<br>
+              University of Tartu<br>
+              Lai 40, Tartu 51005<br>
+              Estonia</p>
+            
+    </div>
+        <hr>
+        <p id="filelist" class="heading">File list</p>
+        <div class="indent">
+            <p><font face="Courier New, Courier, monospace"><a href="dispeRsal.rda">dispeRsal.rda</a>  (MD5:  3589cb5b047c9a44e83fd624dabbacad)</font></p>
+            <p><font face="Courier New, Courier, monospace"><a href="instructions.pdf">instructions.pdf</a>  (MD5:  b5114a42cb9a0e1856e3fa87a3f8db89)</font></p>
+            
+    </div>
+        <p id="desc" class="heading">Description</p>
+        <div class="indent">
+            
+          <p><font face="Courier New, Courier, monospace">dispeRsal.rda</font> – includes the function dispeRsal to predict maximum seed dispersal distances from simple plant traits in software R (R Development Core Team 2012) as well as a dataframe used for the predictive models, an example dataframe, a dataframe for assigning taxonomic families to orders and modified versions of the TPLck and TPL functions from the Taxonstand (Cayuela et al. 2012) package for handling synonymies in the data provided by the user. Full details and  instructions for using dispeRsal can be found in the instructions file.</p>
+            <p><font face="Courier New, Courier, monospace">instructions.pdf</font> – detailed instructions for using dispeRsal  function to predict maximum seed dispersal distances with confidence intervals for user’s own data sets.</p>
+            <p>Future updates of the tool  and the underlying data can be found on a webpage at<br>
+             <a href="http://www.botany.ut.ee/dispersal.">http://www.botany.ut.ee/dispersal.</a> To achieve ongoing improvements to the models, we ask the research community to  contact us with further data on measured seed dispersal distances and associated plant traits. </p>
+<p><span class="smallcaps">Literature Cited</span></p>
+<p><a name="_ENREF_12">Cayuela, L., I. Granzow-de la Cerda, F. S. Albuquerque, and D. J. Golicher. 2012. TAXONSTAND: An R package for species names standardisation in vegetation databases. Methods in Ecology and Evolution 3:1078–1083.</a></p>
+<p>R Development Core Team. 2012. R: A Language and Environment for Statistical Computing. R Foundation for Statistical Computing. Vienna,  Austria. http://www.R-project.org/.</p>
+</div>
+        <!-- Content stops here!  Don't delete anything after this! -->
+        <hr>
+        <p id="links" class="center">
+            <a href="../../../../default.htm" target="_top">ESA Publications</a> |
+            <a href="../../../default.htm" target="_top">Ecological Archives</a> |
+            <a href="../../../copyright.htm" target="_top">Permissions</a> |
+            <a href="../../../citation.htm" target="_top">Citation</a> |
+            <a href="../../../contacts.htm" target="_top">Contacts</a>
+        </p>
+    
+
+<!--?php mysql_close($con); ?--></body></html>
