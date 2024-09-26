@@ -84,20 +84,23 @@ scenarios <- c(paste0("MPI-ESM1-2-HR_", c("ssp126", "ssp370", "ssp585")))
 futures <- apply(expand.grid(time, scenarios), 1, paste, collapse = "/")
 
 ## results dataframe
-area <- data.frame(matrix(ncol = 7, nrow = 0))
-colnames(area) <- c("species", "scenario", "decolonized", "never_colonized", "stable", "colonized", "not_colonizable")
+area <- data.frame(matrix(ncol = 8, nrow = 0))
+colnames(area) <- c("species", "scenario", "time", "decolonized", "never_colonized", "stable", "colonized", "not_colonizable")
 
-## 2.2. Import initial distribution and habitat suitability in future scenarios  ####
-# Lafoensia_glyptocarpa distribution is outside the BHRD!!
+
+# 2. MIGCLIM SIMULATION PER SPECIES  ####---------------------------------------
 for(sp in species){
 
+  ## 2.1. Initial distribution and habitat suitability in future scenarios  ####
+  # get species that does not have all trait information
   no_traits <- dist[which(is.na(dist$GF) | is.na(dist$log10MDD)), "Species"]
   no_traits <- sp %in% no_traits
   
+  # get species that does not have initial distribution within the river basin
   no_models <- list.files(file.path(project_repo, "results", "niche_models", sp))
   no_models <- length(no_models) == 1
   
-  
+  # warning message and ignore migclim simulation if no model or trait info
   if(no_models == TRUE){
     print(paste(sp, "does not have niche models!!"))
   }else if(no_traits == TRUE){
@@ -106,7 +109,7 @@ for(sp in species){
   
   for(s in scenarios){
     
-  ### 1.1.1. Initial distribution  ####
+  ### 2.1.1. Initial distribution  ####
   # import raster from current distribution
   pattern <- list.files(file.path(project_repo, "results", "niche_models", sp, "current"), full.names = TRUE, recursive = TRUE) %>%
     grep("ensemble", ., value = TRUE)
@@ -124,7 +127,7 @@ for(sp in species){
   init_dt <- na.omit(init_dt) # remove NA rows
   
   
-  ## 1.1.2. Habitat suitability in future scenarios  ####
+  ## 2.1.2. Habitat suitability in future scenarios  ####
   # import
 hsuit_dt2 <- map(.x = time,
       .f = function(x){
@@ -169,7 +172,7 @@ hsuit_dt2 <- map(.x = time,
     mutate(across(everything(), ~ifelse(. < 0, 0, ifelse(. > 1000, 1000, .))))
   
 
-  ## 1.1.3 Import dispersal distance values
+  ## 2.2. Import dispersal distance values  ####
   dist_value <- dist[which(dist$Species == sp), "log10MDD"]
   dist_value <- 10^dist_value
   if(!sp %in% dist$Species){
@@ -193,7 +196,7 @@ hsuit_dt2 <- map(.x = time,
     
   }
   
-  ## 1.1.3. Propagule potential
+  ## 2.3. Propagule potential  ####
   # Define the logistic function
   logistic_function <- function(x, a, b, c, d) {
     return(a + b / (1 + exp(-c * (x - d))))
@@ -227,16 +230,15 @@ hsuit_dt2 <- map(.x = time,
   }
   
   
-  ## 2.3. Test if current and future data have the same length
+  ## test if current and future data have the same length
   if(nrow(init_dt) != nrow(hsuit_dt3)){
     
     print(paste0(sp, ": current and future distributions does not match"))
     
   } else {
+
     
-    #______________________________
-    # 2. DISPERSAL SIMULATION  ####
-    #______________________________
+    ## 2.4. Migclim simulation  ####
     path_results <- file.path(out_migclim, sp, s)
     
     ifelse(dir.exists(path_results), paste0(sp, " directory already exists!"),
@@ -259,14 +261,29 @@ hsuit_dt2 <- map(.x = time,
                     overWrite = TRUE, testMode = FALSE,
                     fullOutput = TRUE, keepTempFiles = TRUE)
     
+    ## 2.5. Create final distribution raster
+    for(t in time){
+    
+      if(t == "2081-2100"){
     # create comparison rasters
     final <- rast(paste0("./MigClim_", sp, "/MigClim_", sp, "_raster.asc"))
+      }else{
+        
+        step <- if_else(t == "2021-2040", "step_120", 
+                        if_else(t == "2041-2060", "step_220", 
+                                if_else(t == "2061-2080", "step_320", NA)))
+        
+        final <- rast(paste0("./MigClim_", sp, "/MigClim_", sp, "_", step, ".asc"))
+      }
     
     # see MigClim tutorial for details on raster output values
     # basically, decolonized cells < 0; colonized > 1 and < 30.000; stable cells = 1; and never colonized = 0; potentially suitable but not colonized = 30.000
     values(final)[values(final) < 0] <- -1
-    values(final)[values(final) > 1 & values(final) < 30000] <- 2
+    values(final)[values(final) > 1 & values(final) <= 420] <- 2
+    
+    if(t == "2081-2100"){
     writeRaster(final, file.path(path_results, paste0(sp, "_", s, ".tif")), overwrite = TRUE)
+      }
     
     
    # MigClim.plot(asciiFile = paste0("./MigClimTest_", sp, "/MigClimTest_", sp, "_raster.asc"),
@@ -288,12 +305,13 @@ hsuit_dt2 <- map(.x = time,
     cell_size <- terra::cellSize(col, mask = TRUE)
     col <- sum(values(cell_size), na.rm = TRUE)
     
-    no_col <- final ; no_col[no_col != 30000] <- NA
+    no_col <- final ; no_col[no_col <= 420] <- NA
     cell_size <- terra::cellSize(no_col, mask = TRUE)
     no_col <- sum(values(cell_size), na.rm = TRUE)
     
     sp_area <- data.frame(species = sp,
                           scenario = s,
+                          time = t,
                           decolonized = decol,
                           never_colonized = never_col,
                           stable = stable,
@@ -301,7 +319,7 @@ hsuit_dt2 <- map(.x = time,
                           not_colonizable = no_col)
     
     area <- rbind(area, sp_area)
-    
+    }
     #colnames(area) <- c("species", "scenario", "decolonized", "never colonized", "stable", "colonized")
     
     migclim_files <- list.files(file.path(paste0("MigClim_", sp)))
@@ -331,15 +349,16 @@ hsuit_dt2 <- map(.x = time,
 }
 }
 
+# 3. AREA GAIN AND LOSS RESULTS WITH MIGCLIM  ####------------------------------
 ## get initial distribution area from potential climatic range
 enm_area <- read.csv("/home/alan/Documentos/Repositório/Projetos/INMA/MNE_BHRD/results/niche_models/niche_models_area_results.csv") %>%
-  filter(time == "2081-2100") %>%
-  select(species, scenario, initial)
+#  filter(time == "2081-2100") %>%
+  select(species, scenario, time, initial)
 
-area <- left_join(area, enm_area, by = c("species", "scenario"))
+area_results <- left_join(area, enm_area, by = c("species", "scenario", "time"))
   
-data <- area %>% 
-  mutate_at(vars(3:6), as.numeric) %>%
+area_results <- area_results %>% 
+  mutate_at(vars(4:7), as.numeric) %>%
   mutate(final = stable + colonized) %>%
   mutate(gain_loss = ((final - initial)/initial)*100)
 
@@ -352,6 +371,6 @@ data <- area %>%
 #      (rank(gain_loss) > nrow(filtered)-10) # the high ranks
 #  )
 
-write_csv(data, out_migclim_area)
+write_csv(area_results, out_migclim_area)
 
 

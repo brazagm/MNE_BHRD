@@ -662,14 +662,14 @@ names <- list.files(in_models) %>%
 ## import results with model performances
 ## use only pAUC and TSS mean values among all species
 eval <- list.files(in_models, pattern = "avg_models_evaluation.csv", recursive = TRUE, full.names = TRUE) %>%
-  grep(paste(names, collapse = "|"), ., value = TRUE) %>% # select only species with migclim results
+  grep(paste(spp_names, collapse = "|"), ., value = TRUE) %>% # select only species with migclim results
   read_csv() %>%
-  filter(model == "ensemble") %>%
+#  filter(model == "ensemble") %>%
   group_by(model) %>%
   summarise(n_mean = mean(n),
-            AUC_avg = mean(AUC_mean), AUC_sd = sd(AUC_mean),
-            pAUC_avg = mean(pAUC_mean), pAUC_sd = sd(pAUC_mean),
-            TSS_avg = mean(TSS_mean), TSS_sd = sd(TSS_mean))
+            AUC_avg = mean(na.omit(AUC_mean)), AUC_sd = sd(na.omit(AUC_mean)),
+            pAUC_avg = mean(na.omit(pAUC_mean)), pAUC_sd = sd(na.omit(pAUC_mean)),
+            TSS_avg = mean(na.omit(TSS_mean)), TSS_sd = sd(na.omit(TSS_mean)))
 
 ## get mean value of pAUC and TSS values
 write_csv(eval, file.path(out_models, "niche_models_average_performance.csv"))

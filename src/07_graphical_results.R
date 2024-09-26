@@ -34,8 +34,7 @@ in_munic <- "/home/alan/Documentos/Repositório/GIS/shapes/borders/municipios.sh
 
 ## outputs
 out_performance <- "./results/figures/01_enm_performance.png"
-out_gainloss_enm <- "./results/figures/02-1_niche_models_area_results.png"
-out_gainloss_migclim <- "./results/figures/02-2_migclim_area_results.png"
+out_gainloss <- "./results/figures/02_gain_loss_area_results.png"
 out_restoration <- "./results/figures/03_restoration_priority.png"
 
 
@@ -84,7 +83,12 @@ eval <- list.files(in_models, pattern = "avg_models_evaluation.csv", recursive =
 
 ## get the type of algorithm
 eval <- eval %>%
-  mutate(class = if_else(model %in% c("bioclim", "domain", "mahal"), "presence-only", if_else(model %in% c("GLM", "GBM", "RF"), "presence-absence", if_else(model == "maxent", "presence-background", "ensemble"))))
+  mutate(class = if_else(model %in% c("bioclim", "domain", "mahal"), "presence-only", if_else(model %in% c("GLM", "GBM", "RF"), "presence-absence", if_else(model == "maxent", "presence-background", "ensemble")))) %>%
+  mutate(model = str_replace(model, "bioclim", "Bioclim"),
+         model = str_replace(model, "domain", "Domain"),
+         model = str_replace(model, "mahal", "Mahalanobis"),
+         model = str_replace(model, "maxent", "Maxent"),
+         model = str_replace(model, "ensemble", "Ensemble"))
 
 ## 2.2. Calculate mean value of pAUC and TSS values  ####
 ## mean, sd and max/min values fo each algorithm
@@ -100,13 +104,13 @@ mean <- eval %>%
 
 ## 2.3. Boxplot the performance distribution for each algorithm  ####
 ## reorder the groups
-eval$model <- factor(eval$model , levels = c("bioclim", "domain", "mahal", "GLM", "GBM", "RF", "maxent", "ensemble"))
+eval$model <- factor(eval$model , levels = c("Bioclim", "Domain", "Mahalanobis", "GLM", "GBM", "RF", "Maxent", "Ensemble"))
 eval$class <- factor(eval$class , levels = c("presence-only", "presence-absence", "presence-background", "ensemble"))
 
 ## plot boxplots
 ggplot(data = filter(eval, metric == "TSS")) +
   geom_boxplot(aes(x = model, y = values, fill = class), alpha = 1, notch = TRUE) +
-  scale_fill_brewer(palette = "Set3", name = "Model class") +
+  scale_fill_brewer(palette = "Set3", name = "Model method") +
   xlab("Model algorithm") +
   ylab("True Skill Statistic (TSS)") +
   theme_bw()
@@ -130,108 +134,58 @@ ggsave(out_performance, width = 8, height = 4, dpi = 300, bg = "transparent")
 
 
 # 3. AREA GAIN & LOSS BAR PLOTS  ####-------------------------------------------
-## 3.1. Gain-loss area graph for niche models (climate-only)  ####
-## import area gain and losses results
+# import enm area results
 enm <- read.csv(file.path(project_repo, "results", "niche_models", "niche_models_area_results.csv")) %>%
-  filter(time == "2081-2100") %>%  # select only data from 2081-2100 interval
   filter(species %in% spp_names) # select only species with migclim results
-#  mutate(species = str_replace(species, "_", " "))
 
-## prepare dataframe for bar plot
-## reorder the entries by an unique ID (species name + scenario)
-## and classify each entry as area gain or loss
-data <- enm %>% 
-  arrange(scenario, gain_loss) %>%
-  mutate(scenario = str_replace(scenario, "MPI-ESM1-2-HR_ssp", "SSP")) %>%
-  mutate(id = paste(species, scenario, sep = "_")) %>%
-  mutate(id = factor(id, levels = id),
-         class = if_else(gain_loss >= 0, "gain", "loss"))
-
-## plot bars (vertical option)
-ggplot(data, aes(x = gain_loss, y = id, fill = class)) +
-  geom_col(show.legend = FALSE, width = 1) +
-  geom_vline(aes(xintercept = 0), col = 'black', size = 0.2) +
-  scale_x_continuous(breaks = c(-100, 0, 100, 250, 500, 1000, 1400)) +
-  xlab("Area gain and loss until 2100 (%)") +
-  ylab("Species rank") + # do not show Label of Y
-  scale_fill_manual(breaks = c("gain", "loss"), values = c("#00798c", "#d1495b")) +
-  theme_bw() +
-  theme(axis.ticks.y = element_blank(), axis.text.y = element_blank(),
-        axis.text.x = element_text(angle = -60, vjust = 0.5, hjust = 0),
-        panel.grid.major.y = element_blank(), strip.text = element_text(size = 15),  strip.background = element_rect(colour = "black", fill = "white")) +
-  facet_wrap(~scenario, scales = "free_y")
-
-## export image
-ggsave(out_gainloss_enm, width = 10, height = 4, dpi = 300, bg = "transparent")
-
-## horizontal option
-#ggplot(data, aes(x = gain_loss, y = species, fill = class)) +
-#  geom_col(show.legend = FALSE, width = 1) +
-#  geom_vline(aes(xintercept = 0), col = 'black', size = 0.2) +
-#  coord_flip() +
-#  scale_x_continuous(breaks = c(-100, 0, 100, 250, 500, 1000, 1400)) +
-#  xlab("Area gain and loss until 2100 (%)") +
-#  ylab("Species rank") + # do not show Label of Y
-#  scale_fill_manual(breaks = c("gain", "loss"), values = c("#00798c", "#d1495b")) +
-#  theme_bw() +
-#  theme(axis.ticks.x = element_blank(), axis.text.x = element_blank(),
-#        panel.grid.major.x = element_blank(), strip.text = element_text(size = 15),  strip.background = element_rect(colour = "black", fill = "white")) +
-#  facet_wrap(~scenario, scales = "free_x")
-
-## export image
-#ggsave(file.path("results", "figures", paste0("niche_models_area_results.png")), #width = 12, height = 7, dpi = 300, bg = "transparent")
-
-
-## 3.2. Gain-loss area graph for distribution (with migclim)  ####
-## import area gain and losses results from niche models
-#enm <- read.csv(file.path(project_repo, "results", "niche_models", "niche_models_area_results.csv")) %>%
-#  filter(time == "2081-2100") %>%
-#  filter(species %in% spp_names) %>%  # select only data from 2081-2100 interval
-#  mutate(species = str_replace(species, "_", " "))
-
-## import area gain and losses results from migclim
+# import migclim area results
 migclim <- read.csv(file.path(project_repo, "results/migclim/Migclim_area_results.csv")) %>%
   filter(species %in% spp_names)   # select only data from 2081-2100 interval
-#  mutate(species = str_replace(species, "_", " "))
 
-## join dataframes
-data <- left_join(migclim, enm, by = c("species", "scenario"), suffix = c("_migclim", "_enm")) %>%
-  select(species, scenario, gain_loss_migclim, gain_loss_enm) %>%
-#  pivot_longer(c(gain_loss_migclim, gain_loss_enm), names_to = "model", values_to = "values") %>%
+# join dataframes
+data <- left_join(migclim, enm, by = c("species", "scenario", "time"), suffix = c("_migclim", "_enm")) %>%
+  select(species, scenario, time, gain_loss_migclim, gain_loss_enm) %>%
   mutate(scenario = str_replace(scenario, "MPI-ESM1-2-HR_ssp", "SSP")) %>%
   rename("migclim" = "gain_loss_migclim", "enm" = "gain_loss_enm")
 
-## prepare dataframe for bar plot
-## reorder the entries by an unique ID (species name + scenario)
-## and classify each entry as area gain or loss
-data <- data %>% 
-  arrange(scenario, enm) %>%
-  mutate(id = paste(species, scenario)) %>%
-  mutate(id = factor(id, levels = id),
-         class_migclim = if_else(migclim >= 0, "gain", "loss"),
-         class_enm = if_else(enm >= 0, "gain", "loss"))
+# prepare dataframe for ggplot by classifying each area result
+# and count the number of species for each result
+# ... for enm results
+dt_enm <- data %>% 
+  mutate(estimate = "Potential",
+         class = if_else(enm >= 5, "Gain", if_else(enm <= -5, "Loss", "Stable"))) %>%
+  group_by(scenario, time, class) %>%
+  summarise(estimate = unique(estimate), count = n())
 
-## vertical option
-ggplot(data) +
-  geom_col(aes(x = enm, y = id), alpha = 0.7, show.legend = FALSE, width = 1) +
-  geom_col(aes(x = migclim, y = id, fill = class_migclim), alpha = 0.5, show.legend = FALSE, width = 1) +
-  geom_vline(aes(xintercept = 0), col = 'black', size = 0.2) +
-  scale_x_continuous(breaks = c(-100, 0, 100, 250, 500, 1000, 1400)) +
-  xlab("Area gain and loss until 2100 (%)") +
-  ylab("Species rank") + # do not show Label of Y
-  scale_fill_manual(breaks = c("gain", "loss"), values = c("#00798c", "#d1495b")) +
+# ... for migclim results
+dt_migclim <- data %>% 
+  mutate(estimate = "Colonizable",
+         class = if_else(migclim >= 5, "Gain", if_else(migclim <= -5, "Loss", "Stable"))) %>%
+  group_by(scenario, time, class) %>%
+  summarise(estimate = unique(estimate), count = n())
+
+# join both dataframes into once and reorde 'class' and 'estimate'
+dt <- bind_rows(dt_enm, dt_migclim) %>%
+  mutate(percent = (count/160)*100,
+         class = factor(class, levels = c("Gain", "Stable", "Loss")),
+         estimate = factor(estimate, levels = c("Potential", "Colonizable")))
+
+# plot the results in facet_grid
+ggplot(dt) +
+  geom_point(aes(x = time, y = percent, color = class), size = 2) +
+  geom_line(aes(x = time, y = percent, group = class, color = class)) +
+  scale_color_manual(values = c("#4E84C4", "#FFDB6D", "#D16103"), name = "Distribution area") +
+  ylab("Percentage of species (%)") +
+  xlab("Time period") +
   theme_bw() +
-  theme(axis.ticks.y = element_blank(), axis.text.y = element_blank(),
-        axis.text.x = element_text(angle = -60, vjust = 0.5, hjust = 0),
-        panel.grid.major.y = element_blank(), strip.text = element_text(size = 15),  strip.background = element_rect(colour = "black", fill = "white")) +
-  facet_wrap(~scenario, scales = "free_y")
+  facet_grid(estimate ~ scenario)+
+  theme(axis.text.x = element_text(angle = -20, vjust = 1, hjust = 0), strip.text = element_text(size = 13),  strip.background = element_rect(colour = "black", fill = "white"))
 
 ## export figure
-ggsave(out_gainloss_migclim, width = 12, height = 5, dpi = 300, bg = "transparent")
+ggsave(out_gainloss, width = 11, height = 5, dpi = 300, bg = "transparent")
 
 
-# 3. AREA GAIN & LOSS BAR PLOTS  ####-------------------------------------------
-migclim
+
 
 
 
