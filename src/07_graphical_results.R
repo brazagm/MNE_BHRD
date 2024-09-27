@@ -133,7 +133,8 @@ ggsave(out_performance, width = 8, height = 4, dpi = 300, bg = "transparent")
 #       width = 8, height = 4, dpi = 300, bg = "transparent")
 
 
-# 3. AREA GAIN & LOSS BAR PLOTS  ####-------------------------------------------
+# 3. AREA GAIN & LOSS FIGURES  ####---------------------------------------------
+## 3.1. Variation of species numbers through time periods  ####
 # import enm area results
 enm <- read.csv(file.path(project_repo, "results", "niche_models", "niche_models_area_results.csv")) %>%
   filter(species %in% spp_names) # select only species with migclim results
@@ -185,8 +186,59 @@ ggplot(dt) +
 ggsave(out_gainloss, width = 11, height = 5, dpi = 300, bg = "transparent")
 
 
+## 3.2. Differences between threatened status and endemism  ####
+# import iucn status and endemism info
+threat <- read.csv("./processed_data/01-1_species_list_revised.csv") %>%
+  select(search.str, threat.status, domain) %>%
+  setNames(c("species", "status", "domain")) %>%
+  mutate(species = str_replace(species, " ", "_"),
+         endemism = if_else(domain == "Mata Atlântica", "Endemic", "Not endemic"))
 
+# check the species name that does not match with the species listed in the
+# iucn dataframe (based on Flora do Brasil 2020)
+diff <- setdiff(unique(data$species), unique(threat$species))
 
+# set the synonyms between gbif and Flora do Brasil names
+synonym <- data.frame(gbif = diff, flora = c("Mollinedia_schottiana", "Casearia_commersoniana"))
+
+# replace the flora do brasil by the gbif synonyms
+threat$species <- str_replace_all(threat$species, setNames(synonym$gbif, synonym$flora))
+
+# join both dataframes into one
+# NA values in threatened status was assumed as Least Concern
+threat <- left_join(data, threat, by = "species") %>%
+  mutate(status = replace_na(status, "LC")) %>%
+  mutate(status = factor(status, levels = c("LC", "NT", "VU", "EN", "CR"))) %>%
+  mutate(endemism = factor(endemism, levels = c("Not endemic", "Endemic"))) %>%
+  filter(time == "2081-2100") # only 2081-2100 results
+
+# plot boxplots
+ggplot(threat) +
+  geom_boxplot(aes(x = status, y = migclim, fill = status), alpha = 2, notch = FALSE) +
+  scale_fill_grey(start = 1, end = 0) +
+#  scale_fill_brewer(palette = "Set3", name = "Conservation status") +
+  facet_wrap(~ scenario) +
+  xlab("Conservation status") +
+  ylab("Area gain or loss (%)") +
+  theme_bw() +
+  theme(legend.position = "none", strip.text = element_text(size = 13),  strip.background = element_rect(colour = "black", fill = "white"))
+
+## export figure
+ggsave("./results/figures/02_gain_loss_conserv_status.png", width = 8, height = 3, dpi = 300, bg = "transparent")
+
+# plot boxplots
+ggplot(threat) +
+  geom_boxplot(aes(x = endemism, y = migclim, fill = endemism), alpha = 2, notch = FALSE) +
+  scale_fill_grey(start = 1, end = 0.5) +
+  #  scale_fill_brewer(palette = "Set3", name = "Conservation status") +
+  facet_wrap(~ scenario) +
+  xlab("Atlantic Forest") +
+  ylab("Area gain or loss (%)") +
+  theme_bw() +
+  theme(legend.position = "none", strip.text = element_text(size = 13),  strip.background = element_rect(colour = "black", fill = "white"))
+
+## export figure
+ggsave("./results/figures/02_gain_loss_endemism.png", width = 8, height = 3, dpi = 300, bg = "transparent")
 
 
 # 4. MAPS OF FUTURE SHIFTS ON SPECIES DISTRIBUTION  ####------------------------ 
