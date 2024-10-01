@@ -412,18 +412,22 @@ map(.x = scenarios,
       
 #      migclim <- as.list(migclim)
 #      names(migclim) <- apply(expand.grid(time, spp_names), 1, paste, collapse = "_")
+      # import migclim steps for each time period
+      migclim <- list(`2021-2040` = rast(list[grep("step_120", list)]),
+                      `2041-2060` = rast(list[grep("step_220", list)]),
+                      `2061-2080` = rast(list[grep("step_320", list)]),
+                      `2081-2100` = rast(list[grep("step_420", list)]))
       
-      migclim <- list(`2021-2040` = rast(list[grep("step_120", list)]) > 0,
-                      `2041-2060` = rast(list[grep("step_220", list)]) > 0,
-                      `2061-2080` = rast(list[grep("step_320", list)]) > 0,
-                      `2081-2100` = rast(list[grep("step_420", list)]) > 0)
+      migclim <- lapply(migclim, function(r){
+        return(r > 0 & r < 1000)
+      })
       
       sum_migclim <- lapply(migclim, function(i){
         sum_raster <- sum(i)
         return(sum_raster)
       })
       
-      ### export files
+      # export files
       ifelse(dir.exists(file.path("./results/restoration", x)), "Directory already exists!",
              dir.create(file.path("./results/restoration", x), recursive = TRUE))
       
@@ -447,7 +451,7 @@ map(.x = scenarios,
                          pattern = ".asc", recursive = TRUE, full.names = TRUE) %>%
         grep("step_120|step_220|step_320|step_420", ., value = TRUE)
       
-      migclim <- rast(list) > 0
+      migclim <- rast(list) > 0 & rast(list) < 1000
       names(migclim) <- apply(expand.grid(time, spp_names), 1, paste, collapse = "/")
       
       #potential <- mask(enm, crop(migclim, extent(enm)), maskvalues = 0, updatevalue = 0, inverse = FALSE)
@@ -464,16 +468,61 @@ map(.x = scenarios,
       ifelse(dir.exists(file.path("./results/restoration", x)), "Directory already exists!",
              dir.create(file.path("./results/restoration", x), recursive = TRUE))
       
-      writeRaster(sum_migclim$`2021-2040`, paste0("./results/restoration/", x, "/restoration_priority_", x, "_2021-2040.tiff"), overwrite = TRUE)
-      writeRaster(sum_migclim$`2041-2060`, paste0("./results/restoration/", x, "/restoration_priority_", x, "_2041-2060.tiff"), overwrite = TRUE)
-      writeRaster(sum_migclim$`2061-2080`, paste0("./results/restoration/", x, "/restoration_priority_", x, "_2061-2080.tiff"), overwrite = TRUE)
-      writeRaster(sum_migclim$`2081-2100`, paste0("./results/restoration/", x, "/restoration_priority_", x, "_2081-2100.tiff"), overwrite = TRUE)
+      writeRaster(r_list$`2021-2040`, paste0("./results/restoration/", x, "/restoration_priority_", x, "_2021-2040.tiff"), overwrite = TRUE)
+      writeRaster(r_list$`2041-2060`, paste0("./results/restoration/", x, "/restoration_priority_", x, "_2041-2060.tiff"), overwrite = TRUE)
+      writeRaster(r_list$`2061-2080`, paste0("./results/restoration/", x, "/restoration_priority_", x, "_2061-2080.tiff"), overwrite = TRUE)
+      writeRaster(r_list$`2081-2100`, paste0("./results/restoration/", x, "/restoration_priority_", x, "_2081-2100.tiff"), overwrite = TRUE)
       
     }
 )
 
 
-## 5.2.  Figure: restoration priority within BHRD  ####
+## 5.2. Mapping continuous indices within BHRD  ####
+### 5.2.1. Figure: regeneration priority within BHRD  ####
+list <- list.files("./results/restoration", pattern = ".tiff", recursive = TRUE, full.names = TRUE) %>%
+  grep("regeneration_priority", ., value = TRUE)
+
+r <- rast(list)
+names <- apply(expand.grid(c("SSP126", "SSP370", "SSP585"), time), 1, paste, collapse = "_")
+names <- names[order(names)]
+names(r) <- names
+
+r <- r %>%
+  as.data.frame(., xy = TRUE) %>%
+  na.omit() %>%
+  rename_all(~c("x", "y", names))
+
+r_pivot <- r %>%
+  pivot_longer(
+    c(-x, -y),
+    names_to = "scenario",
+    values_to = "value"
+  ) %>%
+  separate_wider_delim(scenario, "_", names = c("scenario", "time"))
+
+if(length(levels(as.factor(r_pivot$value))) > 2){
+  label_colors <- c("light grey", "light yellow", "light green")
+  label_names <- c("NA", "potential distribution", "colonized distribution")
+}else{
+  
+  label_colors <- c("light grey", "light green")
+  label_names <- c("NA", "colonized distribution")
+}
+
+ggplot() +
+  geom_raster(data = r_pivot, aes(x = x, y = y, fill = value)) +
+  coord_equal() +
+  geom_sf(data = doce, color = "black", linewidth = 0.5, fill = NA) +
+  facet_grid(scenario ~ time, switch = "y") +
+  scale_fill_gradientn(colours = c("white", "lightgreen", "darkgreen"), name = "Regeneration priority") +
+  #  theme_bw() +
+  theme(axis.title.x = element_blank(), axis.ticks.x = element_blank(), axis.text.x = element_blank(), axis.title.y = element_blank(), axis.ticks.y = element_blank(), axis.text.y = element_blank(), legend.position = "bottom", strip.text = element_text(size = 13),  strip.background = element_rect(colour = "black", fill = "white"))
+
+ggsave("./results/figures/03_regeneration_priority.png",
+       width = 10, height = 7, dpi = 300, bg = "white")
+
+
+## 5.2.2. Figure: restoration priority within BHRD  ####
 list <- list.files("./results/restoration", pattern = ".tiff", recursive = TRUE, full.names = TRUE) %>%
   grep("restoration_priority", ., value = TRUE)
 
@@ -493,7 +542,8 @@ r_pivot <- r %>%
     c(-x, -y),
     names_to = "scenario",
     values_to = "value"
-  )
+  ) %>%
+  separate_wider_delim(scenario, "_", names = c("scenario", "time"))
 
 if(length(levels(as.factor(r_pivot$value))) > 2){
   label_colors <- c("light grey", "light yellow", "light green")
@@ -508,26 +558,37 @@ ggplot() +
   geom_raster(data = r_pivot, aes(x = x, y = y, fill = value)) +
   coord_equal() +
   geom_sf(data = doce, color = "black", linewidth = 0.5, fill = NA) +
-  facet_wrap(scenario ~ .) +
-  scale_fill_gradientn(colours = c("blue", "green", "yellow", "red"), name = "Restoration priority") +
-  theme_void() +
-  theme(legend.position = "bottom", strip.text = element_text(size = 15))
+  facet_grid(scenario ~ time, switch = "y") +
+  scale_fill_gradientn(colours = c("white", "yellow", "orange", "red", "darkred"), name = "Restoration priority") +
+#  theme_bw() +
+  theme(axis.title.x = element_blank(), axis.ticks.x = element_blank(), axis.text.x = element_blank(), axis.title.y = element_blank(), axis.ticks.y = element_blank(), axis.text.y = element_blank(), legend.position = "bottom", strip.text = element_text(size = 13),  strip.background = element_rect(colour = "black", fill = "white"))
 
 ggsave(out_restoration,
-       width = 10, height = 7, dpi = 300, bg = "transparent")
+       width = 10, height = 7, dpi = 300, bg = "white")
 
 
 ## 5.3. Restoration priority per municipality  ####
+### 5.3.1. Priority indices per municipality  ####
+# import restoration priority map
 list <- list.files("./results/restoration", pattern = ".tiff", recursive = TRUE, full.names = TRUE) %>%
-  grep("restoration_priority", ., value = TRUE) %>%
-  grep("2081-2100", ., value = TRUE)
+  grep("restoration_priority", ., value = TRUE)
+#  grep("2081-2100", ., value = TRUE)
 
+# import as rasters
 r_list <- as.list(rast(list))
-names(r_list) <- paste0(c("SSP126", "SSP370", "SSP585"), "_2081-2100")
 
+# assign scenario name to each raster
+names(r_list) <- sort(apply(expand.grid(c("SSP126", "SSP370", "SSP585"), time), 1, paste, collapse = "_"))
+
+# import shapefile of municipalities within the river basin
 munic <- vect(in_munic) %>%
   crop(., ext(r_list[[1]]))
 
+# calculate the priority indices for each municipality
+# (1) 'priority_mean' index is calculated by the mean value of all cells within
+#    the municipality limits
+# (2) 'priority_sum' index is calculated by the sum of all cells within the
+#    municipality limits
 values <- map(.x = names(r_list),
               .f = function(x){
                 
@@ -547,103 +608,107 @@ values <- map(.x = names(r_list),
                             scenario = scenario,
                             priority_mean = mean(priority_mean, na.rm = TRUE),
                             priority_sum = sum(priority_sum, na.rm = TRUE)) %>%
-                  arrange(desc(priority_sum))
+                  arrange(desc(priority_mean))
                 
                 
                 return(results)
                 
               })
 
+# join all dataframes and split scenarios and time period
+values <- bind_rows(values) %>%
+  separate_wider_delim(scenario, "_", names = c("scenario", "time"))
 
-
-
-values <- bind_rows(values)
-
+# export the results
 write_csv(values, "./results/restoration/restoration_priority_by_munic.csv")
 
 
-## 5.4. Map restoration priority per municipality  ####
-values <- values %>%
-  pivot_wider(names_from = "scenario", values_from = c("priority_mean", "priority_sum"))
+## 5.3.2. Map restoration priority per municipality  ####
+#values <- values %>%
+#  pivot_wider(names_from = "scenario", values_from = c("priority_mean", "priority_sum"))
 
-### 5.4.1. Horizontal graphic for municipilaties rank  ####
-dt <- as.data.frame(munic) %>%
-  rename("municipality" = "NOMEMUNICP")
+### 5.3.1. Horizontal graphic for municipilaties rank  ####
+# import municipalities features from shapefile
+#dt <- as.data.frame(munic) %>%
+ # rename("municipality" = "NOMEMUNICP") %>%
+#  select(municipality)
 
-dt <- left_join(values, dt, by = "municipality")
+# join municipalities features and priority indices
+#dt <- left_join(values, dt, by = "municipality")
 
-dt <- dt[which(dt$'priority_mean_SSP585_2081-2100' != 0),] %>%
-  rename(Index = 'priority_mean_SSP585_2081-2100') %>%
-  arrange(desc(Index)) %>%
-  head(., 10)
+# 
+#dt <- dt[which(dt$'priority_mean_SSP585_2081-2100' != 0),] %>%
+#  rename(Index = 'priority_mean_SSP585_2081-2100') %>%
+#  arrange(desc(Index)) %>%
+#  head(., 10)
 
-ggplot(dt, aes(x = Index, y = reorder(municipality, Index))) +
+revals <- values %>%
+  arrange(scenario, time, desc(priority_mean)) %>%
+  group_by(scenario, time) %>%
+  slice(1:10)
+
+
+#
+ggplot(revals, aes(x = priority_mean, y = reorder(municipality, priority_mean))) +
   geom_col() +
   xlab("Restoration priority index") +
   ylab("") +
   theme_bw() +
-  theme(legend.position = "bottom", strip.text = element_text(size = 15))
+  theme(legend.position = "bottom", strip.text = element_text(size = 15)) +
+  facet_grid(scenario ~ time, scales = "free")
 
 ggsave("./results/restoration/Restoration_priority_per_municipality_bars.png",
        width = 10, height = 5, dpi = 300, bg = "transparent")
 
-### 5.4.2. 
-values <- values %>%
+### 5.3.4. Maps with priority index per municipality  ####
+# shapefile with municipilaties within the river basin
+munic_bhrd <- crop(munic, doce)
+crs(munic_bhrd) <- "+init=EPSG:4326"
+
+# 
+vals <- values %>%
   rename("NOMEMUNICP" = "municipality")
 
-merge(munic, values, by.x = "NOMEMUNICP")
+data <- list()
 
-dt <- left_join(munic, values, by = "NOMEMUNICP")
+for(s in c("SSP126", "SSP370", "SSP585")){
+  for(t in time){
+    
+    v <- filter(vals, scenario == s & time == t)
+    
+    raster <- merge(munic_bhrd, v, by.x = "NOMEMUNICP") %>%
+      rasterize(., rast(., res = 0.005), field = "priority_mean")
+    
+    data[[paste(s, t, sep = "_")]] <- raster
+    
+  }
+}
 
+data <- lapply(data, function(x){
+  df <- as.data.frame(x) %>%
+    bind_cols(., crds(x))
+  return(df)
+  }
+  )
 
-doce <- as(doce, "Spatial")
-doce <- vect(doce)
-
-dt <- crop(dt, doce)
-crs(dt) <- crs(doce)
-
-dt2 <- map(.x = c("priority_mean_SSP126_2081-2100", "priority_mean_SSP370_2081-2100", "priority_mean_SSP585_2081-2100"),
-           .f = function(x){
-             rasterize(dt, rast(dt, res = 0.005), field = x)
-           })
-
-#names(dt2) <- c("SSP126", "SSP370", "SSP585")
-
-xy <- crds(dt2[[1]])
-
-dt2 <- as.data.frame(dt2) %>%
-  cbind(xy, .) %>%
-  pivot_longer(cols = c("priority_mean_SSP126_2081.2100", "priority_mean_SSP370_2081.2100", "priority_mean_SSP585_2081.2100"), names_to = "variable", values_to = "values")
-
-#munic <- st_set_crs(munic, st_crs(doce))
-#m <- sf::st_intersection(munic, doce)
-
-#m <- vect(intersect(munic, doce))
-
-#munic[which(munic$Index_SSP126_2081-2100 > 0),]
+data <- data %>%
+  bind_rows(., .id = "scenario") %>%
+  separate_wider_delim(scenario, "_", names = c("scenario", "time"), )
 
 
 ggplot() +
-  geom_spatvector(data = dt, aes(fill = `priority_mean_SSP126_2081-2100`), color = "black", linewidth = 0.5) +
-  geom_sf(aes(fill = Index_SSP585_2081.2100)) +
-  #  coord_equal() +
-  #  geom_sf(data = doce, color = "black", linewidth = 0.5, fill = NA) +
-  #  facet_wrap(scenario ~ .) +
-  scale_fill_gradientn(colours = c("white", "yellow", "red"), name = "Restoration priority") +
-  ggtitle("Scenario", subtitle = "SSP585 2081-2100") +
-  theme_void() +
-  theme(legend.position = "bottom", strip.text = element_text(size = 15))
-
-ggplot() +
-  geom_raster(data = dt2, aes(x = x, y = y, fill = values)) +
+  geom_raster(data = data, aes(x = x, y = y, fill = priority_mean)) +
   coord_equal() +
-  geom_spatvector(data = dt, color = "black", linewidth = 0.2, fill = NA) +
+  geom_spatvector(data = munic_bhrd, color = "white", linewidth = 0.1, fill = NA) +
   geom_spatvector(data = doce, color = "black", linewidth = 0.5, fill = NA) +
-  facet_wrap(variable ~ .) +
+  facet_grid(scenario ~ time, switch = "y") +
+  scale_fill_gradientn(colours = c("darkblue", "blue", "purple", "yellow", "orange", "red", "darkred"), name = "Regeneration priority mean") +
 #  scale_fill_gradientn(colours = c("blue", "green", "yellow", "red"), name = "Restoration priority") +
-  theme_void() +
-  theme(legend.position = "bottom", strip.text = element_text(size = 15))
+#  theme_void() +
+  theme(axis.title.x = element_blank(), axis.ticks.x = element_blank(), axis.text.x = element_blank(), axis.title.y = element_blank(), axis.ticks.y = element_blank(), axis.text.y = element_blank(), legend.position = "bottom", strip.text = element_text(size = 13),  strip.background = element_rect(colour = "black", fill = "white"))
 
-ggsave("./results/restoration/Restoration_priority_munic.png",
-       width = 10, height = 7, dpi = 300, bg = "transparent")
+ggsave("./results/figures/04_restoration_priority_munic.png",
+       width = 10, height = 7, dpi = 300, bg = "white")
+
+
 
