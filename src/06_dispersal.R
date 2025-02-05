@@ -51,13 +51,13 @@ library(tidyverse)
 
 # 0. INPUTS & OUTPUTS  ####-----------------------------------------------------
 ## local repositories for model results
-project_repo <- "/home/alan/Documentos/Repositório/Projetos/INMA/MNE_BHRD"
+repo <- "/home/alan/Documentos/Repositório/Projetos/INMA/MNE_BHRD"
 
 ## inputs
 #in_records <- "./processed_data/02-2_Gbif_records_clean_Revised.csv"
 in_riverbasin <- "./data/shape/limite_BHRD.shp"
 in_traits <- "./results/Dispersal_dist.csv"
-in_models <- file.path(project_repo, "results", "niche_models")
+in_models <- file.path(repo, "results", "niche_models")
 
 ## outputs
 out_migclim <- "./results/migclim"
@@ -97,7 +97,7 @@ for(sp in species){
   no_traits <- sp %in% no_traits
   
   # get species that does not have initial distribution within the river basin
-  no_models <- list.files(file.path(project_repo, "results", "niche_models", sp))
+  no_models <- list.files(file.path(repo, "results", "niche_models", sp))
   no_models <- length(no_models) == 1
   
   # warning message and ignore migclim simulation if no model or trait info
@@ -111,7 +111,7 @@ for(sp in species){
     
   ### 2.1.1. Initial distribution  ####
   # import raster from current distribution
-  pattern <- list.files(file.path(project_repo, "results", "niche_models", sp, "current"), full.names = TRUE, recursive = TRUE) %>%
+  pattern <- list.files(file.path(repo, "results", "niche_models", sp, "current"), full.names = TRUE, recursive = TRUE) %>%
     grep("ensemble", ., value = TRUE)
   init <- rast(pattern)
   
@@ -132,7 +132,7 @@ for(sp in species){
 hsuit_dt2 <- map(.x = time,
       .f = function(x){
   
-  pattern_future <- list.files(file.path(project_repo, "results", "niche_models", sp, x, s), full.names = TRUE) %>%
+  pattern_future <- list.files(file.path(repo, "results", "niche_models", sp, x, s), full.names = TRUE) %>%
     grep("ensemble", ., value = TRUE)
   hsuit <- rast(pattern_future)
   
@@ -351,26 +351,15 @@ hsuit_dt2 <- map(.x = time,
 
 # 3. AREA GAIN AND LOSS RESULTS WITH MIGCLIM  ####------------------------------
 ## get initial distribution area from potential climatic range
-enm_area <- read.csv("/home/alan/Documentos/Repositório/Projetos/INMA/MNE_BHRD/results/niche_models/niche_models_area_results.csv") %>%
-#  filter(time == "2081-2100") %>%
+enm_area <- read.csv(file.path(repo, "results/niche_models/niche_models_area_results.csv")) %>%
   select(species, scenario, time, initial)
 
-area_results <- left_join(area, enm_area, by = c("species", "scenario", "time"))
-  
-area_results <- area_results %>% 
+## join potential distribution with colonizable distribution
+area_results <- left_join(area, enm_area, by = c("species", "scenario", "time")) %>%
   mutate_at(vars(4:7), as.numeric) %>%
-  mutate(final = stable + colonized) %>%
-  mutate(gain_loss = ((final - initial)/initial)*100)
+  mutate(final = stable + colonized) %>% # calculate final area
+  mutate(gain_loss = ((final - initial)/initial)*100) # calculate gain/loss percentage
 
-#filtered <- data %>% 
-#  mutate(initial = stable + decolonized, final = stable + colonized) %>%
-#  mutate(gain_loss = ((final - initial)/initial)*100) %>%
-  # Rank enumerates values by their rank (the lower the number , the lower the rank)
-#  filter(
-#    ( 10 >= rank(gain_loss)) |  # We want the low ranks  OR ("|")
-#      (rank(gain_loss) > nrow(filtered)-10) # the high ranks
-#  )
-
+## export area gain/loss results
 write_csv(area_results, out_migclim_area)
-
 

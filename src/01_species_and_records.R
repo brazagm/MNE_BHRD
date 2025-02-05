@@ -14,8 +14,10 @@
 ###  Created by: Alan Braz (@brazagm) // Abr 2024
 ###-----------------------------------------------------------------------------
 
-install.packages("devtools")
-devtools::install_github("liibre/Rocc")
+## install 'Rocc' package from Github repo if necessary
+if(!require("Rocc")) devtools::install_github("liibre/Rocc")
+if(!require("taxize")) remotes::install_github("ropensci/bold")
+if(!require("taxize")) remotes::install_github("ropensci/taxize")
 
 ## load required libraries
 library(devtools)
@@ -24,9 +26,6 @@ library(rgbif)
 library(Rocc)
 library(taxize)
 library(tidyverse)
-
-## install 'Rocc' package from Github repo if necessary
-if(!require("Rocc")) devtools::install_github("liibre/Rocc")
 
 
 # 0. INPUTS & OUTPUTS  ####-----------------------------------------------------

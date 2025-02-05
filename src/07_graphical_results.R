@@ -1,13 +1,14 @@
 ###
 ###  GRAPHICAL RESULTS
 ###
-###  DESCRIPTION: 
+###  Description: Produce figures, graphics and maps based on the outputs of 
+###     other project's scripts.
 ###
 ###  Created & Edited by: Alan Braz (@brazagm)
 ###
-###  OBSERVATIONS:
+###  Observations:
 ###
-###  NEXT TASKS:
+###  Next tasks:
 ###     (1) Revise section 4.
 ###
 
@@ -20,17 +21,16 @@ library(tidyverse)
 
 # 0. INPUTS & OUTPUTS  ####-----------------------------------------------------
 ## local repositories for model results
-project_repo <- "/home/alan/Documentos/Repositório/Projetos/INMA/MNE_BHRD"
+repo <- "/home/alan/Documentos/Repositório/Projetos/INMA/MNE_BHRD"
 
 ## inputs
-in_models <- file.path(project_repo, "results", "niche_models")
-in_migclim <- file.path(project_repo, "results", "migclim")
+in_models <- file.path(repo, "results", "niche_models")
+in_migclim <- file.path(repo, "results", "migclim")
 in_migclim_area <- file.path(in_migclim, "Migclim_area_results.csv")
 #in_records <- "./processed_data/02-2_Gbif_records_clean_Revised.csv"
 in_riverbasin <- "./data/shape/limite_BHRD.shp"
 in_traits <- "./results/Dispersal_dist.csv"
 in_munic <- "/home/alan/Documentos/Repositório/GIS/shapes/borders/municipios.shp"
-
 
 ## outputs
 out_performance <- "./results/figures/01_enm_performance.png"
@@ -48,16 +48,12 @@ doce <- vect(in_riverbasin) %>%
 dist <- read.csv(in_traits) %>%
   mutate(Species = str_replace(Species, " ", "_"))
 
+
 ## 1.2. Species names  ####
-## species' name
-#species <- list.files(in_models) %>%
-#  grep(".csv|.png", ., value = TRUE, invert = TRUE)
+## species to omit because they do not occur within BHRD
+omit_spp <- c("Enterolobium_timbouva", "Piptocarpha_angustifolia")
 
-## species' name
-#species <- list.files(in_models) %>%
-#  grep(".csv|.png", ., value = TRUE, invert = TRUE)
-omit_spp <- c("Enterolobium_timbouva", "Piptocarpha_angustifolia") # omit because they do not occur within BHRD
-
+## get species names with migclim results
 spp_names <- read.csv(in_migclim_area) %>%
   filter(!species %in% omit_spp) %>%
   pull(species) %>%
@@ -70,7 +66,7 @@ scenarios <- c(paste0("MPI-ESM1-2-HR_", c("ssp126", "ssp370", "ssp585")))
 futures <- apply(expand.grid(time, scenarios), 1, paste, collapse = "/")
 
 
-# 2. MODEL PERFORMANCES  ####---------------------------------------------------
+# 2. NICHE MODEL PERFORMANCES  ####---------------------------------------------
 ## 2.1. Import results with model performances  ####
 ## use only pAUC and TSS mean values among all species
 eval <- list.files(in_models, pattern = "avg_models_evaluation.csv", recursive = TRUE, full.names = TRUE) %>%
@@ -96,11 +92,6 @@ mean <- eval %>%
   group_by(model, metric) %>%
   summarise(n = length(na.omit(values)), mean = mean(na.omit(values)), sd = sd(na.omit(values)), max = max(na.omit(values)), min = min(na.omit(values)))
 
-## 
-#summary <- mean %>%
-#  group_by(metric, model) %>%
-#  summarise(n = length(mean))
-
 
 ## 2.3. Boxplot the performance distribution for each algorithm  ####
 ## reorder the groups
@@ -118,37 +109,29 @@ ggplot(data = filter(eval, metric == "TSS")) +
 ## export figure
 ggsave(out_performance, width = 8, height = 4, dpi = 300, bg = "transparent")
 
-## plot histograms
-#ggplot(data = eval, aes(x = values)) +
-#  geom_histogram(binwidth = 0.02) +
-#  geom_vline(data = mean, aes(xintercept = mean), col = 'red', size = 1, linetype = 2)+
-#  xlab("Perfomance metric values") +
-#  ylab("Frequency") +
-#  theme_bw() +
-#  theme(legend.position = "bottom", strip.text = element_text(size = 15), strip.background = element_rect(colour = "black", fill = "white")) +
-#  facet_wrap(~metric)
 
-## export figure
-#ggsave(paste0("./results/figures/01_enm_performance.png"),
-#       width = 8, height = 4, dpi = 300, bg = "transparent")
-
-
-# 3. AREA GAIN & LOSS FIGURES  ####---------------------------------------------
-## 3.1. Variation of species numbers through time periods  ####
+# 3. AREA GAIN & LOSS RESULTS  ####---------------------------------------------
+## 3.1. Organize data  ####
 # import enm area results
-enm <- read.csv(file.path(project_repo, "results", "niche_models", "niche_models_area_results.csv")) %>%
-  filter(species %in% spp_names) # select only species with migclim results
+enm <- read.csv(file.path(repo, "results", "niche_models", "niche_models_area_results.csv")) %>%
+  filter(species %in% spp_names)  %>%
+  unique() # select only species with migclim results
 
 # import migclim area results
-migclim <- read.csv(file.path(project_repo, "results/migclim/Migclim_area_results.csv")) %>%
-  filter(species %in% spp_names)   # select only data from 2081-2100 interval
+migclim <- read.csv(file.path(repo, "results/migclim/Migclim_area_results.csv")) %>%
+  filter(species %in% spp_names) %>% # select only data from 2081-2100 interval
+  unique()
 
 # join dataframes
 data <- left_join(migclim, enm, by = c("species", "scenario", "time"), suffix = c("_migclim", "_enm")) %>%
   select(species, scenario, time, gain_loss_migclim, gain_loss_enm) %>%
-  mutate(scenario = str_replace(scenario, "MPI-ESM1-2-HR_ssp", "SSP")) %>%
+#  mutate(scenario = str_replace(scenario, "MPI-ESM1-2-HR_ssp", "SSP")) %>%
+  mutate(scenario = str_replace_all(scenario, pattern = c("MPI-ESM1-2-HR_ssp126" = "Optimistic", "MPI-ESM1-2-HR_ssp370" = "Intermediate", "MPI-ESM1-2-HR_ssp585" = "Pessimistic"))) %>%
+  mutate(scenario = factor(scenario, levels = c("Optimistic", "Intermediate", "Pessimistic"))) %>%
   rename("migclim" = "gain_loss_migclim", "enm" = "gain_loss_enm")
 
+
+## 3.1. Variation of species numbers through time periods  ####
 # prepare dataframe for ggplot by classifying each area result
 # and count the number of species for each result
 # ... for enm results
@@ -212,6 +195,13 @@ threat <- left_join(data, threat, by = "species") %>%
   mutate(endemism = factor(endemism, levels = c("Not endemic", "Endemic"))) %>%
   filter(time == "2081-2100") # only 2081-2100 results
 
+# test for differences between groups using Kruskal-Wallis non-parametric test
+for(s in c(levels(threat$scenario))){
+  sub <- filter(threat, scenario == s)
+  kruskal.test(migclim ~ status, data = sub)
+  pairwise.wilcox.test(sub$migclim, sub$status, p.adjust.method = "BH")
+}
+
 # plot boxplots
 ggplot(threat) +
   geom_boxplot(aes(x = status, y = migclim, fill = status), alpha = 2, notch = FALSE) +
@@ -225,6 +215,13 @@ ggplot(threat) +
 
 ## export figure
 ggsave("./results/figures/02_gain_loss_conserv_status.png", width = 8, height = 3, dpi = 300, bg = "transparent")
+
+# test for differences between groups using Kruskal-Wallis non-parametric test
+for(s in c(levels(threat$scenario))){
+  sub <- filter(threat, scenario == s)
+  kruskal.test(migclim ~ endemism, data = sub)
+  pairwise.wilcox.test(sub$migclim, sub$endemism, p.adjust.method = "BH")
+}
 
 # plot boxplots
 ggplot(threat) +
@@ -243,16 +240,23 @@ ggsave("./results/figures/02_gain_loss_endemism.png", width = 8, height = 3, dpi
 
 # 4. MAPS OF FUTURE SHIFTS ON SPECIES DISTRIBUTION  ####------------------------ 
 ## 4.1. Colonized/decolonized areas until 2100  ####
+## These maps show colonized and decolonized regions from current distribution
+## to future distribution in 2100 based on the migclim results for each species.
+## Results are shown for each socio-economic pathway. Note that colonized and
+## decolonized areas are defined in differences between current and distribution
+## in 2100.
+##
 ## create a folder for niche model results if it does not exist
 ifelse(dir.exists("./results/figures/distribution_shifts"), "Results directory already exists!",
        dir.create("./results/figures/distribution_shifts", recursive = TRUE))
 
-map(.x = final_spp,
+## create maps for colonized/decolonized areas for each species
+map(.x = spp_names,
     .f = function(x){
       
-      ### 3.3.1. Import Migclim results  ####
+      ### 4.1.1. Import Migclim results  ####
       # import
-      list <- list.files(file.path("./results/migclim", x),
+      list <- list.files(file.path(in_migclim, x),
                          pattern = ".tif", recursive = TRUE, full.names = TRUE) %>%
         grep(paste0(x, "_MPI-ESM1-2-HR_ssp"), ., value = TRUE)
       
@@ -328,7 +332,7 @@ map(.x = final_spp,
       # migclim <- stack(list) > 0
       
       ### 3.3.2. Import ENM results (= potential distribution)  ####
-      list <- list.files(file.path(project_repo, "results/niche_models", x), pattern = ".tif", recursive = TRUE, full.names = TRUE) %>%
+      list <- list.files(file.path(repo, "results/niche_models", x), pattern = ".tif", recursive = TRUE, full.names = TRUE) %>%
         grep("ensemble_spec_sens", ., value = TRUE) %>%
         grep("current", ., value = TRUE, invert = TRUE)
       
@@ -440,7 +444,7 @@ map(.x = scenarios,
       ### restoration priority maps are created based on the difference between
       ### colonized distribution and potential distribution of all species
       ### (i.e., enm - migclim results)
-      list <- list.files(file.path(project_repo, "results/niche_models", spp_names), pattern = ".tif", recursive = TRUE, full.names = TRUE) %>%
+      list <- list.files(file.path(repo, "results/niche_models", spp_names), pattern = ".tif", recursive = TRUE, full.names = TRUE) %>%
         grep("ensemble_spec_sens", ., value = TRUE) %>%
         grep(x, ., value = TRUE)
       
@@ -710,5 +714,27 @@ ggplot() +
 ggsave("./results/figures/04_restoration_priority_munic.png",
        width = 10, height = 7, dpi = 300, bg = "white")
 
+
+
+
+
+
+data <- data %>%
+  group_by(scenario, x, y) %>%
+  summarise(priority_sum = sum(priority_mean))
+
+ggplot() +
+  geom_raster(data = data, aes(x = x, y = y, fill = priority_sum)) +
+  coord_equal() +
+  geom_spatvector(data = munic_bhrd, color = "white", linewidth = 0.1, fill = NA) +
+  geom_spatvector(data = doce, color = "black", linewidth = 0.5, fill = NA) +
+  facet_wrap(scenario ~ .) +
+  scale_fill_gradientn(colours = c("darkblue", "blue", "purple", "yellow", "orange", "red", "darkred"), name = "Regeneration priority mean") +
+  #  scale_fill_gradientn(colours = c("blue", "green", "yellow", "red"), name = "Restoration priority") +
+  #  theme_void() +
+  theme(axis.title.x = element_blank(), axis.ticks.x = element_blank(), axis.text.x = element_blank(), axis.title.y = element_blank(), axis.ticks.y = element_blank(), axis.text.y = element_blank(), legend.position = "bottom", strip.text = element_text(size = 13),  strip.background = element_rect(colour = "black", fill = "white"))
+
+ggsave("./results/figures/04_restoration_priority_munic_summary.png",
+       width = 11, height = 5, dpi = 300, bg = "white")
 
 
