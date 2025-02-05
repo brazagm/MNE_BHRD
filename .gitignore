@@ -7,7 +7,7 @@
 .zip
 
 #ignorar pasta
-data
+#data
 processed_data
 results
 
